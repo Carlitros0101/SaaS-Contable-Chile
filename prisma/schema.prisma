@@ -1,0 +1,307 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MembershipRole {
+  ADMIN
+  ACCOUNTANT
+  OPERATOR
+  VIEWER
+}
+
+enum FiscalYearStatus {
+  OPEN
+  CLOSING
+  CLOSED
+}
+
+enum AccountingPeriodStatus {
+  OPEN
+  CLOSING
+  CLOSED
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum AccountNature {
+  DEBIT
+  CREDIT
+}
+
+enum ThirdPartyKind {
+  CUSTOMER
+  SUPPLIER
+  BOTH
+}
+
+enum DocumentDirection {
+  PURCHASE
+  SALE
+  EXPENSE
+}
+
+enum DocumentStatus {
+  IMPORTED
+  VALIDATED
+  CLASSIFIED
+  PENDING_REVIEW
+  APPROVED
+  POSTED
+  VOIDED
+}
+
+enum JournalEntryStatus {
+  DRAFT
+  PENDING_APPROVAL
+  POSTED
+  REVERSED
+  VOIDED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships            CompanyMembership[]
+  createdJournalEntries  JournalEntry[]       @relation("JournalCreatedBy")
+  approvedJournalEntries JournalEntry[]       @relation("JournalApprovedBy")
+  auditLogs               AuditLog[]
+}
+
+model Company {
+  id           String   @id @default(cuid())
+  rut          String   @unique
+  legalName    String
+  tradeName    String?
+  baseCurrency String   @default("CLP")
+  timezone     String   @default("America/Santiago")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships   CompanyMembership[]
+  fiscalYears   FiscalYear[]
+  periods       AccountingPeriod[]
+  accounts      Account[]
+  thirdParties  ThirdParty[]
+  documents     SourceDocument[]
+  journalEntries JournalEntry[]
+  journalLines  JournalLine[]
+  auditLogs     AuditLog[]
+}
+
+model CompanyMembership {
+  id        String         @id @default(cuid())
+  companyId String
+  userId    String
+  role      MembershipRole
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([companyId, userId])
+  @@index([userId])
+}
+
+model FiscalYear {
+  id        String           @id @default(cuid())
+  companyId String
+  year      Int
+  startDate DateTime
+  endDate   DateTime
+  status    FiscalYearStatus @default(OPEN)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  company        Company            @relation(fields: [companyId], references: [id])
+  periods        AccountingPeriod[]
+  journalEntries JournalEntry[]
+
+  @@unique([companyId, year])
+  @@index([companyId, status])
+}
+
+model AccountingPeriod {
+  id           String                 @id @default(cuid())
+  companyId    String
+  fiscalYearId String
+  number       Int
+  startDate    DateTime
+  endDate      DateTime
+  status       AccountingPeriodStatus @default(OPEN)
+  closedAt     DateTime?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  company        Company        @relation(fields: [companyId], references: [id])
+  fiscalYear     FiscalYear     @relation(fields: [fiscalYearId], references: [id])
+  journalEntries JournalEntry[]
+
+  @@unique([companyId, fiscalYearId, number])
+  @@index([companyId, status])
+}
+
+model Account {
+  id             String        @id @default(cuid())
+  companyId      String
+  code           String
+  name           String
+  type           AccountType
+  nature         AccountNature
+  parentId       String?
+  isActive       Boolean       @default(true)
+  criticalReview Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  company                 Company       @relation(fields: [companyId], references: [id])
+  parent                  Account?      @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children                Account[]     @relation("AccountHierarchy")
+  defaultForThirdParties  ThirdParty[]
+  journalLines            JournalLine[]
+
+  @@unique([companyId, code])
+  @@index([companyId, type])
+  @@index([parentId])
+}
+
+model ThirdParty {
+  id               String         @id @default(cuid())
+  companyId        String
+  kind             ThirdPartyKind
+  rut              String
+  legalName        String
+  tradeName        String?
+  email            String?
+  paymentTermDays  Int?
+  defaultAccountId String?
+  isActive         Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  company        Company          @relation(fields: [companyId], references: [id])
+  defaultAccount Account?         @relation(fields: [defaultAccountId], references: [id])
+  documents      SourceDocument[]
+  journalLines   JournalLine[]
+
+  @@unique([companyId, rut])
+  @@index([companyId, kind])
+  @@index([defaultAccountId])
+}
+
+model SourceDocument {
+  id            String            @id @default(cuid())
+  companyId     String
+  thirdPartyId  String?
+  journalEntryId String?          @unique
+  direction     DocumentDirection
+  documentType  String
+  folio         String
+  issueDate     DateTime
+  dueDate       DateTime?
+  netAmount     Decimal           @db.Decimal(19, 4)
+  taxAmount     Decimal           @db.Decimal(19, 4)
+  exemptAmount  Decimal           @db.Decimal(19, 4)
+  totalAmount   Decimal           @db.Decimal(19, 4)
+  status        DocumentStatus    @default(IMPORTED)
+  source        String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  company      Company       @relation(fields: [companyId], references: [id])
+  thirdParty   ThirdParty?   @relation(fields: [thirdPartyId], references: [id])
+  journalEntry JournalEntry? @relation(fields: [journalEntryId], references: [id])
+
+  @@unique([companyId, documentType, folio, thirdPartyId])
+  @@index([companyId, status])
+  @@index([companyId, issueDate])
+}
+
+model JournalEntry {
+  id           String             @id @default(cuid())
+  companyId    String
+  fiscalYearId String
+  periodId     String
+  number       Int?
+  entryDate    DateTime
+  description  String
+  status       JournalEntryStatus @default(DRAFT)
+  createdById  String
+  approvedById String?
+  approvedAt   DateTime?
+  postedAt     DateTime?
+  reversedEntryId String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  company      Company          @relation(fields: [companyId], references: [id])
+  fiscalYear   FiscalYear       @relation(fields: [fiscalYearId], references: [id])
+  period       AccountingPeriod @relation(fields: [periodId], references: [id])
+  createdBy    User             @relation("JournalCreatedBy", fields: [createdById], references: [id])
+  approvedBy   User?            @relation("JournalApprovedBy", fields: [approvedById], references: [id])
+  lines        JournalLine[]
+  sourceDocument SourceDocument?
+  reversedEntry JournalEntry?   @relation("JournalReversal", fields: [reversedEntryId], references: [id])
+  reversalEntries JournalEntry[] @relation("JournalReversal")
+
+  @@unique([companyId, fiscalYearId, number])
+  @@index([companyId, periodId, status])
+  @@index([companyId, entryDate])
+  @@index([reversedEntryId])
+}
+
+model JournalLine {
+  id             String   @id @default(cuid())
+  companyId      String
+  journalEntryId String
+  accountId      String
+  thirdPartyId   String?
+  description    String?
+  debit          Decimal  @default(0) @db.Decimal(19, 4)
+  credit         Decimal  @default(0) @db.Decimal(19, 4)
+  createdAt      DateTime @default(now())
+
+  company      Company      @relation(fields: [companyId], references: [id])
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account      Account      @relation(fields: [accountId], references: [id])
+  thirdParty   ThirdParty?  @relation(fields: [thirdPartyId], references: [id])
+
+  @@index([companyId, accountId])
+  @@index([journalEntryId])
+  @@index([thirdPartyId])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  companyId   String
+  actorUserId String?
+  entityType  String
+  entityId    String
+  action      String
+  before      Json?
+  after       Json?
+  createdAt   DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+  actor   User?   @relation(fields: [actorUserId], references: [id])
+
+  @@index([companyId, entityType, entityId])
+  @@index([companyId, createdAt])
+}
