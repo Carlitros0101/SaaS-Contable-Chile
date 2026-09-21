@@ -19,6 +19,8 @@ La prioridad actual es construir un n√∫cleo contable robusto antes de ampliar m√
 
 ## Stack inicial
 
+- Node.js 24 LTS
+- npm 11
 - Next.js 16
 - React 19
 - TypeScript
@@ -28,24 +30,33 @@ La prioridad actual es construir un n√∫cleo contable robusto antes de ampliar m√
 
 ## Desarrollo local
 
-1. Copiar `.env.example` a `.env`.
-2. Configurar `DATABASE_URL`.
-3. Instalar dependencias:
+1. Instalar Node.js 24 LTS. El repositorio incluye `.nvmrc`.
+2. Verificar el toolchain:
+
+```bash
+node --version
+npm --version
+```
+
+3. Copiar `.env.example` a `.env`.
+4. Configurar `DATABASE_URL`.
+5. Instalar dependencias:
 
 ```bash
 npm install
 ```
 
-4. Validar:
+6. Validar:
 
 ```bash
 npm run lint
 npm run typecheck
+npm test
 npm run db:validate
 npm run build
 ```
 
-5. Ejecutar:
+7. Ejecutar:
 
 ```bash
 npm run dev
@@ -55,7 +66,3 @@ npm run dev
 
 - [Arquitectura](docs/ARCHITECTURE.md)
 - [Alcance funcional](docs/PRODUCT_SCOPE.md)
-
-## Rama de trabajo inicial
-
-`feat/foundation-v0`

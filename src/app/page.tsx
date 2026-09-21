@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const metrics = [
   { label: "Caja y bancos", value: "$0", detail: "Sin movimientos todavía" },
   { label: "Ventas del mes", value: "$0", detail: "0 documentos" },
@@ -38,7 +40,9 @@ export default function Home() {
             <p className="eyebrow">Empresa de demostración</p>
             <h2>Resumen financiero</h2>
           </div>
-          <button type="button">Importar movimientos</button>
+          <Link className="primaryAction" href="/setup/company">
+            Configurar empresa
+          </Link>
         </header>
 
         <section className="notice">
