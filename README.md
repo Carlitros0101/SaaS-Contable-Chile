@@ -4,9 +4,9 @@ SaaS contable y financiero orientado inicialmente a microempresas y Pymes chilen
 
 ## Estado
 
-Proyecto en fase **foundation v0.1**.
+Proyecto en fase **foundation v0.2**.
 
-La prioridad actual es construir un núcleo contable robusto antes de ampliar módulos.
+Incluye registro e inicio de sesión con verificación de correo, sesiones persistidas y alta transaccional de empresas.
 
 ## Principios
 
@@ -26,6 +26,7 @@ La prioridad actual es construir un núcleo contable robusto antes de ampliar m�
 - TypeScript
 - PostgreSQL
 - Prisma ORM 7
+- Better Auth para identidad y sesiones
 - Netlify como objetivo inicial de despliegue
 
 ## Desarrollo local
@@ -39,14 +40,23 @@ npm --version
 ```
 
 3. Copiar `.env.example` a `.env`.
-4. Configurar `DATABASE_URL`.
+4. Configurar `DATABASE_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET` y las variables SMTP indicadas en `.env.example`. Genera el secreto con `openssl rand -base64 32`.
 5. Instalar dependencias:
 
 ```bash
 npm install
 ```
 
-6. Validar:
+6. Crear o actualizar la base local:
+
+```bash
+npm run db:migrate:deploy
+```
+
+En una base vacía, la migración inicial crea el esquema contable, los datos de autenticación y las tablas de seguridad.
+Para crear una migración después de modificar el esquema, usa `npm run db:migrate:dev -- --name nombre_del_cambio`.
+
+7. Validar:
 
 ```bash
 npm run lint
@@ -56,11 +66,13 @@ npm run db:validate
 npm run build
 ```
 
-7. Ejecutar:
+8. Ejecutar:
 
 ```bash
 npm run dev
 ```
+
+En producción configura estas variables en Netlify: `DATABASE_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD` y `EMAIL_FROM`. Aplica migraciones con `npm run db:migrate:deploy` desde un entorno controlado antes de desplegar una versión que las requiera.
 
 ## Documentación
 
