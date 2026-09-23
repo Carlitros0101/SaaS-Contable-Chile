@@ -22,7 +22,7 @@ export function validateJournal(lines: JournalLineInput[]): JournalValidationRes
   let totalCredit = 0n;
 
   for (const line of lines) {
-    if (!line.accountId) {
+    if (line.accountId.trim().length === 0) {
       return {
         ok: false,
         reason: "Todas las líneas requieren una cuenta contable.",
