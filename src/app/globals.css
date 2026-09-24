@@ -62,6 +62,13 @@ button {
   padding: 10px 11px;
 }
 
+.sidebar nav span[aria-disabled="true"] {
+  color: #8792a8;
+  border-radius: 8px;
+  padding: 10px 11px;
+  opacity: .65;
+}
+
 .sidebar a:hover,
 .sidebar a.active {
   color: white;
@@ -286,4 +293,71 @@ button {
   padding: 10px 16px;
   text-decoration: none;
   font-weight: 700;
+}
+
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logoutButton {
+  min-height: 42px;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  color: #344054;
+}
+
+.companyList {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.companyCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.companyCard h3,
+.emptyState h3 {
+  margin: 7px 0;
+  font-size: 18px;
+}
+
+.companyCard p:not(.eyebrow),
+.emptyState p {
+  margin: 5px 0 0;
+  color: #667085;
+  font-size: 13px;
+}
+
+.companyMeta {
+  display: grid;
+  gap: 5px;
+  text-align: right;
+}
+
+.companyMeta span {
+  color: #667085;
+  font-size: 12px;
+}
+
+.emptyState .primaryAction {
+  margin-top: 18px;
+}
+
+@media (max-width: 620px) {
+  .topbarActions,
+  .companyCard {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .companyMeta {
+    text-align: left;
+  }
 }

@@ -1,0 +1,9 @@
+[build]
+command = "npm run build"
+
+# Run schema migrations only against the database configured for Deploy Previews.
+[context.deploy-preview]
+command = "npm run db:migrate:deploy && npm run build"
+
+[build.environment]
+NODE_VERSION = "24"

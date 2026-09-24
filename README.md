@@ -4,9 +4,11 @@ SaaS contable y financiero orientado inicialmente a microempresas y Pymes chilen
 
 ## Estado
 
-Proyecto en fase **foundation v0.1**.
+Proyecto en fase **foundation v0.3**.
 
-La prioridad actual es construir un núcleo contable robusto antes de ampliar módulos.
+Incluye registro e inicio de sesión con verificación de correo, sesiones persistidas y alta transaccional de empresas. Cada empresa puede mantener su propio plan de cuentas y guardar asientos balanceados como borradores.
+
+El plan base incluido es referencial y no normativo. Los borradores todavía no reciben numeración ni se contabilizan en el mayor.
 
 ## Principios
 
@@ -26,27 +28,48 @@ La prioridad actual es construir un núcleo contable robusto antes de ampliar m�
 - TypeScript
 - PostgreSQL
 - Prisma ORM 7
+- Better Auth para identidad y sesiones
 - Netlify como objetivo inicial de despliegue
 
 ## Desarrollo local
 
-1. Instalar Node.js 24 LTS. El repositorio incluye `.nvmrc`.
-2. Verificar el toolchain:
+Requiere Node.js 24 LTS y Docker Desktop (o Docker Engine con Compose). El repositorio incluye `.nvmrc`.
+
+1. Verificar el toolchain:
 
 ```bash
 node --version
 npm --version
 ```
 
-3. Copiar `.env.example` a `.env`.
-4. Configurar `DATABASE_URL`.
-5. Instalar dependencias:
+2. Iniciar PostgreSQL y Mailpit para pruebas locales:
 
 ```bash
+docker compose up -d
+```
+
+3. Copiar la configuración local e instalar dependencias:
+
+```bash
+cp .env.example .env
 npm install
 ```
 
-6. Validar:
+4. Crear o actualizar la base local:
+
+```bash
+npm run db:migrate:deploy
+```
+
+5. Ejecutar la aplicación:
+
+```bash
+npm run dev
+```
+
+Abre `http://localhost:3000`. Mailpit captura los correos de verificación y recuperación en `http://localhost:8025`; los mensajes de prueba no se envían a destinatarios externos. Prueba el flujo: crear usuario, verificar el correo en Mailpit, crear empresa, revisar el plan de cuentas y guardar un borrador balanceado.
+
+Para ejecutar las comprobaciones automatizadas:
 
 ```bash
 npm run lint
@@ -56,13 +79,33 @@ npm run db:validate
 npm run build
 ```
 
-7. Ejecutar:
+Para detener los servicios conservando la base local:
 
 ```bash
-npm run dev
+docker compose down
 ```
+
+`docker compose down -v` elimina también el volumen de PostgreSQL y borra esos datos de prueba.
+
+En una base vacía, la migración inicial crea el esquema contable, los datos de autenticación y las tablas de seguridad.
+Para crear una migración después de modificar el esquema, usa `npm run db:migrate:dev -- --name nombre_del_cambio`.
+
+## Otros entornos
+
+Para un entorno propio, reemplaza todas las claves de desarrollo. Configura `DATABASE_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET` y SMTP real. Genera el secreto con `openssl rand -base64 32`. No uses `.env.example` en producción.
+
+En producción configura estas variables en Netlify: `DATABASE_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD` y `EMAIL_FROM`. Aplica migraciones con `npm run db:migrate:deploy` desde un entorno controlado antes de desplegar una versión que las requiera.
+
+## Deploy Previews en Netlify
+
+El repositorio incluye `netlify.toml` y fija Node.js 24. Conecta este repositorio desde Netlify, habilita Deploy Previews para pull requests y Netlify compilará la rama de cada PR. Netlify adapta automáticamente la aplicación Next.js, incluidas las páginas server-rendered, Route Handlers y Server Actions.
+
+Configura variables distintas para **Deploy Previews** y **Production**; no conectes las previews a la base productiva. Para probar el flujo completo, la preview requiere una base PostgreSQL de pruebas, `BETTER_AUTH_SECRET` propio para el sitio, `BETTER_AUTH_URL` con el dominio principal de Netlify y credenciales SMTP de pruebas. `DATABASE_URL`, `BETTER_AUTH_SECRET` y las variables SMTP deben estar disponibles durante el build y en las funciones que ejecutan la app. `BETTER_AUTH_URL` sirve como valor base; en Deploy Previews, la app utiliza la URL única `DEPLOY_PRIME_URL` que Netlify entrega para ese despliegue al construir los enlaces de verificación y recuperación.
+
+En Deploy Previews, `netlify.toml` aplica `npm run db:migrate:deploy` antes de compilar, usando exclusivamente la `DATABASE_URL` configurada para ese contexto. Mantén esa variable conectada a una base de pruebas de Neon, nunca a la base productiva. El contexto de Production no ejecuta migraciones automáticamente: aplícalas desde un proceso controlado antes de publicar cambios de esquema. Las variables y credenciales de `.env.example` son exclusivamente locales y no se deben cargar a Netlify.
 
 ## Documentación
 
 - [Arquitectura](docs/ARCHITECTURE.md)
 - [Alcance funcional](docs/PRODUCT_SCOPE.md)
+- [Plan de cuentas y asientos](docs/ACCOUNTING_PERSISTENCE.md)
