@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [main, feat/journal-validation-hardening]
+    branches: [main, feat/journal-validation-hardening, feat/auth-company-persistence]
   push:
     branches: [main]
 

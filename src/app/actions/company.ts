@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildMonthlyPeriods, validateCompanySetup, type CompanySetupInput } from "@/domain/company/setup";
+import { createStarterChart } from "@/domain/accounting/starter-chart";
 
 export type CreateCompanyResult =
   | { ok: true; companyId: string; legalName: string }
@@ -64,6 +65,10 @@ export async function createCompany(input: CompanySetupInput): Promise<CreateCom
           endDate: period.endDate,
         })),
       });
+
+      if (companyData.planTemplate === "STANDARD") {
+        await createStarterChart(transaction, createdCompany.id);
+      }
 
       await transaction.auditLog.create({
         data: {

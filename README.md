@@ -4,9 +4,11 @@ SaaS contable y financiero orientado inicialmente a microempresas y Pymes chilen
 
 ## Estado
 
-Proyecto en fase **foundation v0.2**.
+Proyecto en fase **foundation v0.3**.
 
-Incluye registro e inicio de sesión con verificación de correo, sesiones persistidas y alta transaccional de empresas.
+Incluye registro e inicio de sesión con verificación de correo, sesiones persistidas y alta transaccional de empresas. Cada empresa puede mantener su propio plan de cuentas y guardar asientos balanceados como borradores.
+
+El plan base incluido es referencial y no normativo. Los borradores todavía no reciben numeración ni se contabilizan en el mayor.
 
 ## Principios
 
@@ -78,3 +80,4 @@ En producción configura estas variables en Netlify: `DATABASE_URL`, `BETTER_AUT
 
 - [Arquitectura](docs/ARCHITECTURE.md)
 - [Alcance funcional](docs/PRODUCT_SCOPE.md)
+- [Plan de cuentas y asientos](docs/ACCOUNTING_PERSISTENCE.md)

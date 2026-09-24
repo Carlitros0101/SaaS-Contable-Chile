@@ -84,6 +84,7 @@ export default async function Home() {
               <div className="companyMeta">
                 <span>Ejercicio inicial</span>
                 <strong>{company.fiscalYears[0]?.year ?? "Sin ejercicio"}</strong>
+                <Link className="primaryAction" href={`/companies/${company.id}`}>Abrir contabilidad</Link>
               </div>
             </article>
           ))}
