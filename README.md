@@ -96,6 +96,14 @@ Para un entorno propio, reemplaza todas las claves de desarrollo. Configura `DAT
 
 En producción configura estas variables en Netlify: `DATABASE_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD` y `EMAIL_FROM`. Aplica migraciones con `npm run db:migrate:deploy` desde un entorno controlado antes de desplegar una versión que las requiera.
 
+## Deploy Previews en Netlify
+
+El repositorio incluye `netlify.toml` y fija Node.js 24. Conecta este repositorio desde Netlify, habilita Deploy Previews para pull requests y Netlify compilará la rama de cada PR. Netlify adapta automáticamente la aplicación Next.js, incluidas las páginas server-rendered, Route Handlers y Server Actions.
+
+Configura variables distintas para **Deploy Previews** y **Production**; no conectes las previews a la base productiva. Para probar el flujo completo, la preview requiere una base PostgreSQL de pruebas, `BETTER_AUTH_SECRET` propio para el sitio, `BETTER_AUTH_URL` con el dominio principal de Netlify y credenciales SMTP de pruebas. `DATABASE_URL`, `BETTER_AUTH_SECRET` y las variables SMTP deben estar disponibles durante el build y en las funciones que ejecutan la app. `BETTER_AUTH_URL` sirve como valor base; en Deploy Previews, la app utiliza la URL única `DEPLOY_PRIME_URL` que Netlify entrega para ese despliegue al construir los enlaces de verificación y recuperación.
+
+Aplica la migración a la base de pruebas antes del primer uso. Netlify no debe ejecutar migraciones contra producción automáticamente durante cada preview. Las variables y credenciales de `.env.example` son exclusivamente locales y no se deben cargar a Netlify.
+
 ## Documentación
 
 - [Arquitectura](docs/ARCHITECTURE.md)

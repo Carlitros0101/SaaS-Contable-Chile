@@ -2,10 +2,17 @@ import { betterAuth } from "better-auth/minimal";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { buildAuthUrlConfig } from "@/lib/auth-url";
 
 const production = process.env.NODE_ENV === "production";
 const authUrl = process.env.BETTER_AUTH_URL;
+const deployPreviewUrl = process.env.DEPLOY_PRIME_URL;
 const authSecret = process.env.BETTER_AUTH_SECRET;
+const authUrls = buildAuthUrlConfig({
+  configuredUrl: authUrl,
+  deployUrl: deployPreviewUrl,
+  canonicalUrl: process.env.URL,
+});
 
 if (production && (!authUrl || !authSecret || authSecret.length < 32)) {
   throw new Error("En producción se requieren BETTER_AUTH_URL y BETTER_AUTH_SECRET de al menos 32 caracteres.");
@@ -13,11 +20,9 @@ if (production && (!authUrl || !authSecret || authSecret.length < 32)) {
 
 export const auth = betterAuth({
   appName: "SaaS Contable Chile",
-  baseURL: authUrl ?? "http://localhost:3000",
+  baseURL: authUrls.baseURL,
   secret: authSecret,
-  trustedOrigins: [authUrl, process.env.URL, process.env.DEPLOY_PRIME_URL].filter(
-    (origin): origin is string => Boolean(origin),
-  ),
+  trustedOrigins: authUrls.trustedOrigins,
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
