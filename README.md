@@ -33,32 +33,43 @@ El plan base incluido es referencial y no normativo. Los borradores todavía no 
 
 ## Desarrollo local
 
-1. Instalar Node.js 24 LTS. El repositorio incluye `.nvmrc`.
-2. Verificar el toolchain:
+Requiere Node.js 24 LTS y Docker Desktop (o Docker Engine con Compose). El repositorio incluye `.nvmrc`.
+
+1. Verificar el toolchain:
 
 ```bash
 node --version
 npm --version
 ```
 
-3. Copiar `.env.example` a `.env`.
-4. Configurar `DATABASE_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET` y las variables SMTP indicadas en `.env.example`. Genera el secreto con `openssl rand -base64 32`.
-5. Instalar dependencias:
+2. Iniciar PostgreSQL y Mailpit para pruebas locales:
 
 ```bash
+docker compose up -d
+```
+
+3. Copiar la configuración local e instalar dependencias:
+
+```bash
+cp .env.example .env
 npm install
 ```
 
-6. Crear o actualizar la base local:
+4. Crear o actualizar la base local:
 
 ```bash
 npm run db:migrate:deploy
 ```
 
-En una base vacía, la migración inicial crea el esquema contable, los datos de autenticación y las tablas de seguridad.
-Para crear una migración después de modificar el esquema, usa `npm run db:migrate:dev -- --name nombre_del_cambio`.
+5. Ejecutar la aplicación:
 
-7. Validar:
+```bash
+npm run dev
+```
+
+Abre `http://localhost:3000`. Mailpit captura los correos de verificación y recuperación en `http://localhost:8025`; los mensajes de prueba no se envían a destinatarios externos. Prueba el flujo: crear usuario, verificar el correo en Mailpit, crear empresa, revisar el plan de cuentas y guardar un borrador balanceado.
+
+Para ejecutar las comprobaciones automatizadas:
 
 ```bash
 npm run lint
@@ -68,11 +79,20 @@ npm run db:validate
 npm run build
 ```
 
-8. Ejecutar:
+Para detener los servicios conservando la base local:
 
 ```bash
-npm run dev
+docker compose down
 ```
+
+`docker compose down -v` elimina también el volumen de PostgreSQL y borra esos datos de prueba.
+
+En una base vacía, la migración inicial crea el esquema contable, los datos de autenticación y las tablas de seguridad.
+Para crear una migración después de modificar el esquema, usa `npm run db:migrate:dev -- --name nombre_del_cambio`.
+
+## Otros entornos
+
+Para un entorno propio, reemplaza todas las claves de desarrollo. Configura `DATABASE_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET` y SMTP real. Genera el secreto con `openssl rand -base64 32`. No uses `.env.example` en producción.
 
 En producción configura estas variables en Netlify: `DATABASE_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD` y `EMAIL_FROM`. Aplica migraciones con `npm run db:migrate:deploy` desde un entorno controlado antes de desplegar una versión que las requiera.
 
