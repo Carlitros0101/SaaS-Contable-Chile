@@ -119,20 +119,37 @@ export async function setAccountActive(companyId: string, accountId: string, isA
   if (!membership || !["ADMIN", "ACCOUNTANT"].includes(membership.role)) {
     return { ok: false, message: "No tienes permiso para modificar el plan de cuentas." };
   }
-  const account = await prisma.account.findFirst({ where: { id: accountId, companyId } });
-  if (!account) return { ok: false, message: "No se encontró la cuenta." };
-  if (account.isActive === isActive) return { ok: true, message: isActive ? "La cuenta ya está activa." : "La cuenta ya está inactiva." };
-
-  if (!isActive) {
-    const activeChildren = await prisma.account.count({ where: { companyId, parentId: accountId, isActive: true } });
-    if (activeChildren > 0) return { ok: false, message: "Desactiva primero las cuentas hijas activas." };
-  } else if (account.parentId) {
-    const parent = await prisma.account.findFirst({ where: { id: account.parentId, companyId }, select: { isActive: true } });
-    if (!parent?.isActive) return { ok: false, message: "Activa primero la cuenta agrupadora." };
-  }
 
   try {
-    await prisma.$transaction(async (transaction) => {
+    const outcome = await prisma.$transaction(async (transaction) => {
+      const snapshot = await transaction.account.findFirst({
+        where: { id: accountId, companyId },
+        select: { id: true, parentId: true },
+      });
+      if (!snapshot) return { ok: false, message: "No se encontró la cuenta." } as const;
+
+      const idsToLock = [...new Set([accountId, snapshot.parentId].filter((id): id is string => id !== null))].sort();
+      for (const id of idsToLock) {
+        await transaction.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "Account" WHERE "id" = ${id} AND "companyId" = ${companyId} FOR UPDATE`;
+      }
+
+      const account = await transaction.account.findFirst({ where: { id: accountId, companyId } });
+      if (!account) return { ok: false, message: "No se encontró la cuenta." } as const;
+      if (account.isActive === isActive) {
+        return { ok: true, message: isActive ? "La cuenta ya está activa." : "La cuenta ya está inactiva." } as const;
+      }
+
+      if (!isActive) {
+        const activeChildren = await transaction.account.count({ where: { companyId, parentId: accountId, isActive: true } });
+        if (activeChildren > 0) return { ok: false, message: "Desactiva primero las cuentas hijas activas." } as const;
+      } else if (account.parentId) {
+        const parent = await transaction.account.findFirst({
+          where: { id: account.parentId, companyId },
+          select: { isActive: true },
+        });
+        if (!parent?.isActive) return { ok: false, message: "Activa primero la cuenta agrupadora." } as const;
+      }
+
       await transaction.account.update({ where: { id: accountId }, data: { isActive } });
       await transaction.auditLog.create({
         data: {
@@ -145,10 +162,17 @@ export async function setAccountActive(companyId: string, accountId: string, isA
           after: { isActive },
         },
       });
+      return {
+        ok: true,
+        message: isActive ? "Cuenta activada." : "Cuenta desactivada; los asientos históricos se conservan.",
+      } as const;
     });
-    revalidatePath(`/companies/${companyId}/accounts`);
-    revalidatePath(`/companies/${companyId}/journals`);
-    return { ok: true, message: isActive ? "Cuenta activada." : "Cuenta desactivada; los asientos históricos se conservan." };
+
+    if (outcome.ok) {
+      revalidatePath(`/companies/${companyId}/accounts`);
+      revalidatePath(`/companies/${companyId}/journals`);
+    }
+    return outcome;
   } catch (error) {
     console.error("Account status update failed", error);
     return { ok: false, message: "No se pudo actualizar el estado de la cuenta." };
@@ -168,43 +192,50 @@ export async function createJournalDraft(companyId: string, input: unknown): Pro
   const parsed = parseJournalDraftInput(input);
   if (!parsed.ok) return parsed;
   const entry = parsed.value;
-
-  const [fiscalYear, period, accounts] = await Promise.all([
-    prisma.fiscalYear.findFirst({
-      where: { id: entry.fiscalYearId, companyId, status: "OPEN" },
-      select: { id: true, year: true },
-    }),
-    prisma.accountingPeriod.findFirst({
-      where: {
-        id: entry.periodId,
-        companyId,
-        fiscalYearId: entry.fiscalYearId,
-        status: "OPEN",
-        startDate: { lte: entry.entryDate },
-        endDate: { gte: entry.entryDate },
-      },
-      select: { id: true },
-    }),
-    prisma.account.findMany({
-      where: {
-        companyId,
-        isActive: true,
-        id: { in: [...new Set(entry.lines.map((line) => line.accountId))] },
-        children: { none: {} },
-      },
-      select: { id: true },
-    }),
-  ]);
-
-  if (!fiscalYear || !period) {
-    return { ok: false, message: "La fecha debe corresponder a un período abierto del ejercicio seleccionado." };
-  }
-  if (accounts.length !== new Set(entry.lines.map((line) => line.accountId)).size) {
-    return { ok: false, message: "Usa solo cuentas activas y de detalle pertenecientes a esta empresa." };
-  }
+  const accountIds = [...new Set(entry.lines.map((line) => line.accountId))].sort();
 
   try {
     const saved = await prisma.$transaction(async (transaction) => {
+      await transaction.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "FiscalYear" WHERE "id" = ${entry.fiscalYearId} AND "companyId" = ${companyId} FOR UPDATE`;
+      await transaction.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "AccountingPeriod" WHERE "id" = ${entry.periodId} AND "companyId" = ${companyId} AND "fiscalYearId" = ${entry.fiscalYearId} FOR UPDATE`;
+      for (const accountId of accountIds) {
+        await transaction.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "Account" WHERE "id" = ${accountId} AND "companyId" = ${companyId} FOR UPDATE`;
+      }
+
+      const [fiscalYear, period, accounts] = await Promise.all([
+        transaction.fiscalYear.findFirst({
+          where: { id: entry.fiscalYearId, companyId, status: "OPEN" },
+          select: { id: true, year: true },
+        }),
+        transaction.accountingPeriod.findFirst({
+          where: {
+            id: entry.periodId,
+            companyId,
+            fiscalYearId: entry.fiscalYearId,
+            status: "OPEN",
+            startDate: { lte: entry.entryDate },
+            endDate: { gte: entry.entryDate },
+          },
+          select: { id: true },
+        }),
+        transaction.account.findMany({
+          where: {
+            companyId,
+            isActive: true,
+            id: { in: accountIds },
+            children: { none: {} },
+          },
+          select: { id: true },
+        }),
+      ]);
+
+      if (!fiscalYear || !period) {
+        return { ok: false, message: "La fecha debe corresponder a un período abierto del ejercicio seleccionado." } as const;
+      }
+      if (accounts.length !== accountIds.length) {
+        return { ok: false, message: "Usa solo cuentas activas y de detalle pertenecientes a esta empresa." } as const;
+      }
+
       const journal = await transaction.journalEntry.create({
         data: {
           companyId,
@@ -242,10 +273,12 @@ export async function createJournalDraft(companyId: string, input: unknown): Pro
           },
         },
       });
-      return journal;
+      return { ok: true, journalId: journal.id } as const;
     });
+
+    if (!saved.ok) return saved;
     revalidatePath(`/companies/${companyId}/journals`);
-    return { ok: true, message: `Borrador guardado (${saved.id.slice(-8)}).` };
+    return { ok: true, message: `Borrador guardado (${saved.journalId.slice(-8)}).` };
   } catch (error) {
     console.error("Journal draft creation failed", error);
     return { ok: false, message: "No se pudo guardar el asiento. Intenta nuevamente." };
