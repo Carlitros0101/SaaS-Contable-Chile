@@ -102,7 +102,7 @@ El repositorio incluye `netlify.toml` y fija Node.js 24. Conecta este repositori
 
 Configura variables distintas para **Deploy Previews** y **Production**; no conectes las previews a la base productiva. Para probar el flujo completo, la preview requiere una base PostgreSQL de pruebas, `BETTER_AUTH_SECRET` propio para el sitio, `BETTER_AUTH_URL` con el dominio principal de Netlify y credenciales SMTP de pruebas. `DATABASE_URL`, `BETTER_AUTH_SECRET` y las variables SMTP deben estar disponibles durante el build y en las funciones que ejecutan la app. `BETTER_AUTH_URL` sirve como valor base; en Deploy Previews, la app utiliza la URL única `DEPLOY_PRIME_URL` que Netlify entrega para ese despliegue al construir los enlaces de verificación y recuperación.
 
-Aplica la migración a la base de pruebas antes del primer uso. Netlify no debe ejecutar migraciones contra producción automáticamente durante cada preview. Las variables y credenciales de `.env.example` son exclusivamente locales y no se deben cargar a Netlify.
+En Deploy Previews, `netlify.toml` aplica `npm run db:migrate:deploy` antes de compilar, usando exclusivamente la `DATABASE_URL` configurada para ese contexto. Mantén esa variable conectada a una base de pruebas de Neon, nunca a la base productiva. El contexto de Production no ejecuta migraciones automáticamente: aplícalas desde un proceso controlado antes de publicar cambios de esquema. Las variables y credenciales de `.env.example` son exclusivamente locales y no se deben cargar a Netlify.
 
 ## Documentación
 
